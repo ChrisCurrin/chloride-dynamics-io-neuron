@@ -8,6 +8,8 @@ import numpy as np
 from neuron import h
 
 from src.config import settings
+from src.utils.compile_mod import nrnivmodl
+from src.utils.file_io import cd
 
 logger = logging.getLogger('shared')
 
@@ -35,13 +37,15 @@ def INIT_NEURON(reinit=False):
     else:
         initialised = True
     # compile mod files
-    if __mod_files_changed(settings.MOD_PATH) or settings.NEURON_RECOMPILE:
-        from src.utils.compile_mod import compile_mod
-        output = compile_mod(path=settings.MOD_PATH, mod=True)
-        if "Error" in str(output):
+    if __mod_files_changed(settings.MOD_PATH) or settings.NEURON_RECOMPILE or reinit:
+        with cd(settings.MOD_PATH, with_logs=False):
+            output = nrnivmodl(clean_after=True)
+        if "failed" in str(output):
             raise Exception("MOD FILES not compiled successfully")
+
     # load mod files
     h.nrn_load_dll(settings.NRNMECH_PATH)
+
     # load hoc files including usefulFns.hoc
     for hoc_file in glob.glob(settings.HOC_PATH + "/*.hoc"):
         h.load_file(hoc_file.replace("\\", "/"))

@@ -35,12 +35,12 @@ INDEPENDENT {t FROM 0 TO 1 WITH 1 (ms)}
 NEURON {
 	THREADSAFE
 	POINT_PROCESS inhfluct
-	RANGE g_i, g_i0, g_fluct, egaba
+	RANGE g_i, g_i0, g_fluct
 	RANGE std_i, tau_i, D_i
+	RANGE pcl, phco3, egaba, Tdur
 	RANGE new_seed
 	USEION cl READ ecl WRITE icl VALENCE -1
 	USEION hco3 READ ehco3 WRITE ihco3 VALENCE -1
-	GLOBAL pcl, phco3, Tdur
 }
 
 UNITS {

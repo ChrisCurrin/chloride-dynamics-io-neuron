@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 from neuron import h
 from src.iocurves.analysis import load_from_file, save_to_file
-from src.utils.nrnpy import get_base_vm_cli, load_file
+from src.utils.nrnpy import get_base_vm_cli, load_file, set_global_cli
 from src.utils.timing import current_time
 
 logger = logging.getLogger("cl time")
@@ -14,7 +14,7 @@ DT = 0.025*SUBSAMPLE
 
 
 def pyrun(file_name, synapse_type=1, synapse_numbers=(100, 100), syn_input=None, diam=None, pa_kcc2=None,
-          location='axon', trials=1, save=True, tstop=TSTOP, **kwargs):
+          location='axon', trials=1, save=True, tstop=TSTOP, vm_egaba=None, **kwargs):
     """
     Run a NEURON simulation for a neuron specified in ``file_name`` with input specified by other parameters provided.
 
@@ -38,6 +38,8 @@ def pyrun(file_name, synapse_type=1, synapse_numbers=(100, 100), syn_input=None,
     :type save: bool
     :param tstop: Length of simulation (ms).
     :type tstop: float
+    :param vm_egaba: Tuple of Vm init and strength of GABA-A receptor (Optional).
+    :type vm_egaba: (float, float)
     :param kwargs: Other keywords are ignored.
 
     :return: Pair of DataFrame with results and name of save file (even if not saved, the name is generated).
@@ -49,6 +51,7 @@ def pyrun(file_name, synapse_type=1, synapse_numbers=(100, 100), syn_input=None,
     save_name += "_{}".format(diam) if diam is not None else ''
     save_name += "_{}".format(pa_kcc2) if pa_kcc2 is not None else ''
     save_name += "_{}_{}".format(location, trials)
+    save_name += "_{}".format(vm_egaba) if vm_egaba is not None else ''
     save_name = save_name.replace(" ","").replace("'","").replace(":","=").replace("{","(").replace("}",")")
     logger.info(save_name)
     if save:
@@ -82,18 +85,22 @@ def pyrun(file_name, synapse_type=1, synapse_numbers=(100, 100), syn_input=None,
     h.newSynapses(synapse_numbers[0], synapse_numbers[1])
     h.inPy(0)
     h.ex(0)
-    vm_init, cli = get_base_vm_cli(file_name, compartment=compartment)
-    h.v_init = vm_init
-    h_str = """
-        forall{""" + """
-            cli = {0}
-            cli0_cl_ion = {0}
+    if vm_egaba is None:
+        vm_init, cli = get_base_vm_cli(file_name, compartment=compartment)
+        h.v_init = vm_init
+        h_str = """
+            forall{""" + """
+                cli = {0}
+                cli0_cl_ion = {0}
+                """.format(cli)
+        if file_name.find("KCC2") > 0:
+            h_str += """cli0_KCC2 = {0}
             """.format(cli)
-    if file_name.find("KCC2") > 0:
-        h_str += """cli0_KCC2 = {0}
-        """.format(cli)
-    h_str += "}"
-    h(h_str)
+        h_str += "}"
+        h(h_str)
+    else:
+        h.v_init = vm_egaba[0]
+        set_global_cli(vm_egaba[1])
 
     h.tstop = tstop
 
@@ -186,6 +193,35 @@ def do_runs(file_name, plot=[()] or True, syn_input=None, ifr_windowsize=1., **k
         GC += 1
 
     return result, save_name, result_kcc2, save_name_kcc2
+
+def do_run(file_name, syn_input=None, subsample=None, **kwargs):
+    """
+    Run a neuron as specified in ``file_name`` with synaptic input as in ``syn_input``.
+
+    :param file_name: Neuron definition (excluding '.hoc').
+    :type file_name: str
+    :param syn_input: Excitatory "ex" and inhibitory "in" input, specified as a mapping.
+        E.g. {'ex': 5, 'in': 5}
+    :type syn_input: dict[str, float]
+    :param kwargs: Other keywords to pass to :meth:`pyrun`.
+    :return:
+    :rtype:
+    """
+    global GC
+    result, save_name = pyrun(file_name, syn_input=syn_input, **kwargs)
+    if subsample is None:
+        subsample = SUBSAMPLE
+    result = result.iloc[::subsample]
+
+    # try clear some RAM
+    if GC == 10:
+        import gc
+        gc.collect()
+        GC = 0
+    else:
+        GC += 1
+
+    return result, save_name
 
 
 is_menu = 0

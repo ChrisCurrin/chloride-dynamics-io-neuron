@@ -44,11 +44,13 @@ ENDCOMMENT
 NEURON {
 	THREADSAFE
 	POINT_PROCESS GABAa
-	RANGE g
+	RANGE g, gmax
+	RANGE pcl, phco3
+	RANGE Tdur, Alpha
+    RANGE Beta, Rinf, Rtau
 	USEION cl READ ecl WRITE icl VALENCE -1
 	USEION hco3 READ ehco3 WRITE ihco3 VALENCE -1
 	USEION gaba WRITE egaba VALENCE -1
-	GLOBAL pcl, phco3, Tdur, Alpha, Beta, Rinf, Rtau, gmax
 }
 
 UNITS {

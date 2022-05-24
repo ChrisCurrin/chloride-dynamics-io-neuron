@@ -2,8 +2,9 @@
 import os
 import shutil
 import logging
+from pathlib import Path
 from datetime import datetime
-from typing import List
+from typing import List, Union
 
 import pandas as pd
 
@@ -56,22 +57,38 @@ def move_file(src, dest):
     except IOError or shutil.Error:
         print("error copying file")
 
+def delete_files(paths: Union[str, Path, List[Union[str, Path]]]):
+    """Delete the files in the list of paths."""
+    if isinstance(paths, str):
+        paths = [paths]
+    elif isinstance(paths, Path):
+        paths = [paths]
+
+    for path in paths:
+        if isinstance(path, str):
+            path = Path(path)
+        if path.exists():
+            path.unlink(missing_ok=True)
+
 
 class cd(object):
     """Context manager for changing the current working directory"""
 
-    def __init__(self, new_path):
+    def __init__(self, new_path, with_logs=True):
         self.new_path = os.path.expanduser(new_path)
+        self.with_logs = with_logs
 
     def __enter__(self):
         self.savedPath = os.getcwd()
         os.chdir(self.new_path)
-        logger.debug("in " + self.new_path)
+        if self.with_logs:
+            logger.info("in " + self.new_path)
 
     def __exit__(self, etype, value, traceback):
-        logger.debug("out " + self.new_path)
         os.chdir(self.savedPath)
-        logger.debug("in " + self.savedPath)
+        if self.with_logs:
+            logger.info("out " + self.new_path)
+            logger.info("in " + self.savedPath)
 
 
 def read_ei_file(file: str) -> dict:

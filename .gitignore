@@ -139,3 +139,6 @@ dmypy.json
 *.eps
 *.png
 *.md5
+results/*
+results_plots/*
+src/mod/arm64/*

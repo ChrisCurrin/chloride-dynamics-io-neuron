@@ -171,3 +171,33 @@ def load(title):
         py_v_vec = pickle.load(vec_file)
     v_vec_restore = h.Vector(py_v_vec)
     return t_vec_restore, v_vec_restore
+
+def set_global_cli(egaba=-65.0, phco3=0.2, pcl=0.8):
+    """
+    EGABA is calculated as follows:
+    icl  = g_i * pcl * (v - ecl)
+    ihco3 = g_i * phco3 * (v - ehco3)
+    egaba = pcl*ecl + phco3*ehco3
+
+    pcl		= 0.8				: permeability fraction of Cl
+    phco3	= 0.2				: permeability fraction of HCO3
+
+    ECl = (RT/-F) * ln(clo/cli)
+    ECL * -F / RT = ln(clo/cli)
+    e^[ECL * -F / RT] = clo/cli
+    cli = clo / e^[ECL * -F / RT]
+    cli = clo * e^[ECL * F / RT]
+
+    """
+    import numpy as np
+    h.finitialize()
+    ehco3 = h.soma.ehco3
+    assert ehco3 < 0.
+    assert phco3 + pcl == 1
+    ecl = (egaba - phco3*ehco3)/pcl
+    ecl_V = ecl/1000
+    cli = h.soma.clo * np.exp(ecl_V*h.FARADAY/(h.R * (h.celsius+273.15)))
+    for sec in h.allsec:
+        sec.cli = cli
+        # sec.ecl = ecl
+    logger.info("set global cli to {} for an egaba of {}".format(cli, egaba))
